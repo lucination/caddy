@@ -1,0 +1,37 @@
+{
+	email you@example.com
+}
+
+# Wildcard cert over ACME DNS-01 — works even with no inbound port 80/443.
+*.example.com {
+	tls {
+		dns cloudflare {env.CF_API_TOKEN}
+		resolvers 1.1.1.1
+	}
+
+	@app host app.example.com
+	handle @app {
+		reverse_proxy upstream:8080
+	}
+
+	handle {
+		respond "no such host" 404
+	}
+}
+
+# replace-response: rewrite an upstream that hardcodes its internal origin.
+docs.example.com {
+	tls {
+		dns cloudflare {env.CF_API_TOKEN}
+	}
+
+	reverse_proxy docs-backend:3000 {
+		# replace-response can only rewrite bodies it can read; stop the
+		# upstream from sending compressed content.
+		header_up Accept-Encoding identity
+	}
+
+	replace {
+		"http://docs-backend:3000" "https://docs.example.com"
+	}
+}

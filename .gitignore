@@ -1,0 +1,7 @@
+# Local build artifacts / secrets — never commit these.
+.env
+Caddyfile
+!Caddyfile.example
+caddy_data/
+caddy_config/
+*.log

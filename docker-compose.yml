@@ -1,0 +1,29 @@
+services:
+  caddy:
+    image: ghcr.io/lucination/caddy-cloudflare:latest
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      # Scoped Cloudflare token with Zone:DNS:Edit + Zone:Zone:Read.
+      # Put the value in a .env file next to this compose file; never commit it.
+      CF_API_TOKEN: ${CF_API_TOKEN:?set CF_API_TOKEN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # /data holds certificates and the ACME account key. Persist it or you
+      # will re-issue every cert on each recreate and hit LE rate limits.
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "-T", "3", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  caddy_data:
+  caddy_config:

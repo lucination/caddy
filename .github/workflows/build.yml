@@ -1,0 +1,121 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly rebuild so the image picks up Alpine/Caddy base security fixes.
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      caddy_version:
+        description: "Caddy version to build against"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/caddy-cloudflare
+  DOCKERHUB_IMAGE: docker.io/lucination/caddy-cloudflare
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve Caddy version
+        id: caddy
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.caddy_version }}" ]; then
+            VERSION="${{ inputs.caddy_version }}"
+          else
+            VERSION="$(grep -m1 '^ARG CADDY_VERSION=' Dockerfile | cut -d= -f2)"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Building Caddy ${VERSION}"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.GHCR_IMAGE }}
+            ${{ env.DOCKERHUB_IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.caddy.outputs.version }},enable={{is_default_branch}}
+            type=raw,value=${{ steps.caddy.outputs.version }}-alpine,enable={{is_default_branch}}
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha,format=short
+          labels: |
+            org.opencontainers.image.title=caddy-cloudflare
+            org.opencontainers.image.description=Caddy ${{ steps.caddy.outputs.version }} with the Cloudflare DNS (ACME DNS-01) and replace-response modules
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            CADDY_VERSION=${{ steps.caddy.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+
+      # Pull each arch back out of the registry and prove the modules are
+      # actually compiled in. A green build only proves it compiled -- it does
+      # not prove the plugins landed in the binary.
+      - name: Verify plugins in published image (amd64 + arm64)
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          TAG="$(echo '${{ steps.meta.outputs.tags }}' | head -n1)"
+          echo "Verifying $TAG"
+          for ARCH in amd64 arm64; do
+            echo "::group::linux/$ARCH"
+            OUT="$(docker run --rm --platform "linux/$ARCH" --entrypoint caddy "$TAG" list-modules)"
+            echo "$OUT" | grep -qx 'dns.providers.cloudflare' \
+              || { echo "MISSING dns.providers.cloudflare on $ARCH"; exit 1; }
+            echo "$OUT" | grep -qx 'http.handlers.replace_response' \
+              || { echo "MISSING http.handlers.replace_response on $ARCH"; exit 1; }
+            docker run --rm --platform "linux/$ARCH" --entrypoint caddy "$TAG" version
+            echo "OK: both modules present on linux/$ARCH"
+            echo "::endgroup::"
+          done
+
+      - name: Inspect published manifest
+        if: github.event_name != 'pull_request'
+        run: |
+          docker buildx imagetools inspect "$(echo '${{ steps.meta.outputs.tags }}' | head -n1)"
