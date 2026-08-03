@@ -1,6 +1,6 @@
 services:
   caddy:
-    image: ghcr.io/lucination/caddy:latest
+    image: lucination/caddy:latest
     container_name: caddy
     restart: unless-stopped
     ports:

@@ -8,19 +8,23 @@ multi-arch Alpine image for `linux/amd64` and `linux/arm64`.
 | `dns.providers.cloudflare` | [caddy-dns/cloudflare](https://github.com/caddy-dns/cloudflare) | ACME **DNS-01** challenges via the Cloudflare API — lets you issue certs for hosts that are not publicly reachable, and wildcard certs. |
 | `http.handlers.replace_response` | [caddyserver/replace-response](https://github.com/caddyserver/replace-response) | String/regex substitution in response bodies as they are proxied through. |
 
-## Images
+## Image
+
+The canonical image is Docker Hub’s namespaced repository:
 
 ```
-ghcr.io/lucination/caddy:latest
-docker.io/lucination/caddy:latest
+lucination/caddy:latest
 ```
+
+An identical GHCR mirror is also available at
+`ghcr.io/lucination/caddy:latest`.
 
 Tags: `latest`, `<caddy-version>` (e.g. `2.11.4`), `<caddy-version>-alpine`, and
 `sha-<short>`. Both registries carry identical multi-arch manifests.
 
 ```bash
-docker run --rm ghcr.io/lucination/caddy:latest version
-docker run --rm ghcr.io/lucination/caddy:latest list-modules | grep -E 'cloudflare|replace_response'
+docker run --rm lucination/caddy:latest version
+docker run --rm lucination/caddy:latest list-modules | grep -E 'cloudflare|replace_response'
 ```
 
 ## Cloudflare API token
@@ -91,7 +95,7 @@ replace {
 ```yaml
 services:
   caddy:
-    image: ghcr.io/lucination/caddy:latest
+    image: lucination/caddy:latest
     restart: unless-stopped
     ports:
       - "80:80"
