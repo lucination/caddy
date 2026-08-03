@@ -42,6 +42,13 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Building Caddy ${VERSION}"
 
+      # Cross-compilation means QEMU is NOT needed to *build* arm64 -- but the
+      # verify step below *runs* the arm64 image, and executing a foreign-arch
+      # binary does need binfmt registered. Without this: "exec format error".
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
