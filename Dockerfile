@@ -26,7 +26,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build,sharing=locked \
 FROM caddy:${CADDY_VERSION}-alpine
 
 ARG CADDY_VERSION
-LABEL org.opencontainers.image.title="caddy" \
+LABEL org.opencontainers.image.title="lucination/caddy" \
       org.opencontainers.image.description="Caddy ${CADDY_VERSION} with the Cloudflare DNS (ACME DNS-01) and replace-response modules" \
       org.opencontainers.image.source="https://github.com/lucination/caddy" \
       org.opencontainers.image.licenses="Apache-2.0" \
