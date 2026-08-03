@@ -1,4 +1,4 @@
-# caddy-cloudflare
+# caddy
 
 [Caddy](https://caddyserver.com) built with two extra modules, published as a
 multi-arch Alpine image for `linux/amd64` and `linux/arm64`.
@@ -11,16 +11,16 @@ multi-arch Alpine image for `linux/amd64` and `linux/arm64`.
 ## Images
 
 ```
-ghcr.io/lucination/caddy-cloudflare:latest
-docker.io/lucination/caddy-cloudflare:latest
+ghcr.io/lucination/caddy:latest
+docker.io/lucination/caddy:latest
 ```
 
 Tags: `latest`, `<caddy-version>` (e.g. `2.11.4`), `<caddy-version>-alpine`, and
 `sha-<short>`. Both registries carry identical multi-arch manifests.
 
 ```bash
-docker run --rm ghcr.io/lucination/caddy-cloudflare:latest version
-docker run --rm ghcr.io/lucination/caddy-cloudflare:latest list-modules | grep -E 'cloudflare|replace_response'
+docker run --rm ghcr.io/lucination/caddy:latest version
+docker run --rm ghcr.io/lucination/caddy:latest list-modules | grep -E 'cloudflare|replace_response'
 ```
 
 ## Cloudflare API token
@@ -91,7 +91,7 @@ replace {
 ```yaml
 services:
   caddy:
-    image: ghcr.io/lucination/caddy-cloudflare:latest
+    image: ghcr.io/lucination/caddy:latest
     restart: unless-stopped
     ports:
       - "80:80"
@@ -132,11 +132,15 @@ healthcheck:
 ## Building locally
 
 ```bash
-docker buildx build --platform linux/amd64,linux/arm64 -t caddy-cloudflare:dev .
+docker buildx build --platform linux/amd64,linux/arm64 -t lucination/caddy:dev .
 
 # a specific Caddy version
-docker buildx build --build-arg CADDY_VERSION=2.11.4 -t caddy-cloudflare:dev .
+docker buildx build --build-arg CADDY_VERSION=2.11.4 -t lucination/caddy:dev .
 ```
+
+> Tag local builds under the `lucination/` namespace. A bare `-t caddy:...`
+> collides with the official `caddy` image this Dockerfile builds *from*, and
+> can shadow the base image in your local image store.
 
 The builder stage pins itself to `$BUILDPLATFORM` and cross-compiles with
 `GOOS`/`GOARCH` + `CGO_ENABLED=0`, so the arm64 image is compiled natively on an
